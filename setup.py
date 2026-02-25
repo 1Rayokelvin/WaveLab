@@ -38,10 +38,6 @@ class ExperimentSetup:
     def __init__(self, config: Config):
         self.config = config
         self.config.validate()
-                
-        if not self.config.spectrum.spatial.profile:
-            raise RuntimeError("Spatial envelope is not defined.")
-        
         self.rng = np.random.default_rng(config.random.seed)
         
     def generate_beam(self) -> Beam:
@@ -56,7 +52,7 @@ class ExperimentSetup:
         num_wls = len(wls)
 
         # 1. Compute polychromatic envelope weights
-        if num_wls > 1 and self.config.spectrum.spectral.profile is not None:
+        if num_wls > 1 and self.config.spectrum.spectral.profile:
             weights = np.array([
                 self.config.spectrum.spectral.profile(wl, **self.config.spectrum.spectral.params)
                 for wl in wls

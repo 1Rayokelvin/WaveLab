@@ -10,7 +10,7 @@ It includes serialization support (JSON) and extensive documentation for
 angular spectrum generation.
 """
 
-import json, importlib
+import json
 import warnings
 import numpy as np
 from dataclasses import dataclass, field, is_dataclass, asdict, fields
@@ -182,6 +182,13 @@ class SerializableConfig:
         return val
 
     @staticmethod
+    def custom_callable_fail(*args, **kwargs):
+        """Dummy callable as a placeholder for custom functions while deserializing from json."""
+        raise RuntimeError(
+            "Custom callable(s) not initialized properly! You must redefine it before execution."
+            )
+
+    @staticmethod
     def _deserialize_callable(data):
         """Restores functions from spectras.py."""        
         if data.get("type") == "custom":
@@ -190,15 +197,16 @@ class SerializableConfig:
                 "It must be redefined before execution.",
                 UserWarning
             )
-            return None
+            # Return the dummy failure function instead of None
+            return SerializableConfig.custom_callable_fail
         
         target_name = data.get("name")
         for cls in [spatial_spectras, spectral_spectras]:
             if hasattr(cls, target_name):
                 return getattr(cls, target_name)
         
-        return None
-
+        raise RuntimeError("Deserializing callable failed. Callable must be from spectras.py or have type 'custom'. ")
+    
     def save(self, filename: str):
             """Saves the config dataclass as json at filename"""
             with open(filename, 'w') as f:
@@ -278,7 +286,7 @@ class SourceConfig(SerializableConfig):
     pol_vect: Tuple[complex, complex] = (1+0j, 0+0j)
     beam_axis: Tuple[float, float, float] = (0.0, 0.0, 1.0)
     num_modes: int = 6000
-    angular_support: Literal["hemisphere", "sphere"] | str = "hemisphere"
+    angular_support: Literal["hemisphere", "sphere"] = "hemisphere"
 
     def validate(self):
         """Performs strict type and value checking."""
@@ -391,6 +399,12 @@ class SpatialConfig(SerializableConfig):
     params: Dict[str, Any] = field(default_factory=lambda: {"sigma_k_perp": 1.5})
     vectorised: bool = True
 
+    def uniform(self):
+        """Set spectral envelope to Uniform (no scaling applied)."""
+        self.profile = spatial_spectras.uniform
+        self.params = {}
+        return self
+
     def gaussian(self, sigma_k_perp: float = 1.5):
         """Set spatial profile to a Gaussian beam."""
         self.profile = spatial_spectras.gaussian
@@ -430,7 +444,6 @@ class SpatialConfig(SerializableConfig):
         self.vectorised = True
         return self
 
-
     def custom(self, fn: Callable, vectorised: bool = False, **params):
         """Set a user-defined spatial profile."""
         self.profile = fn
@@ -441,7 +454,9 @@ class SpatialConfig(SerializableConfig):
 
     def validate(self):
         """Validates the spatial spectrum against dummy k-vectors."""
-        if self.profile is None: return
+        if getattr(self.profile, '__name__', '') == 'custom_callable_fail': 
+            return
+        
         try:
             test_k = np.random.randn(3, 2) if self.vectorised else np.random.randn(3)
             res = self.profile(test_k, **self.params)
@@ -463,8 +478,14 @@ class SpectralConfig(SerializableConfig):
     """
     Configuration for the spectral (wavelength) envelope of polychromatic beams.
     """
-    profile: Optional[Callable] = None
+    profile: Callable = field(default=spectral_spectras.uniform)
     params: Dict[str, Any] = field(default_factory=dict)
+
+    def uniform(self):
+        """Set spectral envelope to Uniform (no scaling applied)."""
+        self.profile = spectral_spectras.uniform
+        self.params = {}
+        return self
 
     def gaussian(self, center: float = 8.0, sigma: float = 0.5):
         """Set spectral envelope to a Gaussian distribution."""
@@ -493,7 +514,9 @@ class SpectralConfig(SerializableConfig):
 
     def validate(self):
         """Validates the polychromatic envelope with a test wavelength."""
-        if self.profile is None: return
+        if getattr(self.profile, '__name__', '').endswith('fail'): 
+            return
+        
         try:
             test_wl = 8.0
             result = self.profile(test_wl, **self.params)
@@ -544,7 +567,7 @@ class Config(SerializableConfig):
     verbose : bool
         If True, prints progress details.
     """
-    backend: Literal["auto", "numpy", "numba"] | str = "auto"
+    backend: Literal["auto", "numpy", "numba"] = "auto"
     op: OpConfig = field(default_factory=OpConfig)
     source: SourceConfig = field(default_factory=SourceConfig)
     random: RandomConfig = field(default_factory=RandomConfig)
