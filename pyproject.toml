@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wavelab"
+dynamic = ["version"]
+description = "Plane Wave Superposition toolkit"
+authors = [
+  { name = "Mayank Soni" }
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+  "numpy==2.2.6",
+  "numba==0.63.1",
+  "scipy==1.15.3"
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "wavelab.version.current_version_str" }
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

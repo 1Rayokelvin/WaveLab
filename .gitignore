@@ -1,0 +1,18 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local test outputs
+test_config.json
+*.png
+*.jpg
+*.pdf
+
+# IDEs
+.vscode/
+.idea/
+
+# Environments
+venv/
+env/
