@@ -1,7 +1,17 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
+*.pyd
+
+# Numba cache
+*.nbc
+*.nbi
+
+# Packaging
+*.egg-info/
+dist/
+build/
 
 # Local test outputs
 test_config.json
