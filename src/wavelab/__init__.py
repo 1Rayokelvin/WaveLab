@@ -11,10 +11,10 @@ Main workflow:
     >>> config = get_config()
     >>> config.source.num_modes = 10000
     >>> expt = setup_engine(config)
-    >>> E, derivs, B = expt.compute_on_op(z=0.0)
+    >>> result = expt.compute_on_op(z=0.0)
 
 Author: Mayank Soni
-Year: 2025
+Year: 2026
 """
 from .version import current_version, current_version_str
 __version_info__ = current_version
@@ -25,15 +25,16 @@ from .config_stuff import (
     Config,
     OpConfig,
     SourceConfig,
-    RandomConfig,
-    SpectrumConfig,
+    RandomizeConfig,
+    KSpaceConfig,
+    PolychromaticConfig,
     get_config,
     load_config
 )
 
 # Core Pipeline
 from .beam_stuff import BeamMaker, Beam
-from .engine_stuff import FieldEngine
+from .engine_stuff import FieldEngine, FieldResult
 
 # Utilities & Physics Math
 from .utils import (
@@ -51,8 +52,7 @@ def setup_beam(config: Config) -> Beam:
 
 def setup_engine(config: Config) -> FieldEngine:
     """
-    High-level wrapper to generate the beam and initialize the computation engine
-    from config object.
+    High-level wrapper to generate the beam and initialize the computation engine.
     """
     return FieldEngine(setup_beam(config), config)
 
@@ -67,31 +67,37 @@ except ImportError:
         return DummyPbar()
 
 
-__all__ = [
+__all__ =[
     # Config
     "Config",
     "OpConfig", 
     "SourceConfig",
-    "RandomConfig",
-    "SpectrumConfig",
+    "RandomizeConfig",
+    "KSpaceConfig",
+    "PolychromaticConfig",
     "get_config",
     "load_config",
     
     # Engine Pipeline
     "setup_engine",
-    "ExperimentSetup",
+    "setup_beam",
+    "BeamMaker",
     "Beam",
     "FieldEngine",
+    "FieldResult",
     
     # Utilities
-    "get_stokes_parameters",
-    "get_ellipse_parameters", 
-    "decompose_in_polarization_basis",
+    "get_stokes_params",
+    "get_pol_ellipse_params", 
+    "decompose_in_basis",
 
     # Topologies
     "SingularityFinder",
 
     # tqdm
-    "tqdm"
+    "tqdm",
+    
+    # Version
+    "__version__",
+    "__version_info__"
 ]
-
