@@ -1,28 +1,57 @@
+# -------------------------
 # Python bytecode
+# -------------------------
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
+*$py.class
 
+# -------------------------
 # Numba cache
+# -------------------------
 *.nbc
 *.nbi
 
-# Packaging
-*.egg-info/
-dist/
+# -------------------------
+# Build / packaging
+# -------------------------
 build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
 
+# -------------------------
+# MkDocs build output
+# -------------------------
+site/
+
+# -------------------------
+# Jupyter
+# -------------------------
+.ipynb_checkpoints/
+
+# -------------------------
 # Local test outputs
+# -------------------------
 test_config.json
 *.png
 *.jpg
 *.pdf
 
+# -------------------------
 # IDEs
+# -------------------------
 .vscode/
 .idea/
 
-# Environments
+# -------------------------
+# Virtual environments
+# -------------------------
 venv/
 env/
+.venv/
+
+# -------------------------
+# OS junk
+# -------------------------
+.DS_Store
+Thumbs.db

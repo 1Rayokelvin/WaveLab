@@ -193,8 +193,8 @@ class FieldEngine:
         if B is not None: B.flags.writeable = False
         
         jacobian_E = None
-        if D is not None:
-            jacobian_E = np.stack(D, axis=1)
+        if D is not None and D[0] is not None:
+            jacobian_E = np.stack(np.array(D), axis=1)
             jacobian_E.flags.writeable = False
         
         return FieldResult(E=E, _B=B, _jacobian_E=jacobian_E)
@@ -228,6 +228,9 @@ class FieldEngine:
         FieldResult
             Object containing E (3, Ny, Nx) and optionally B and Jacobian.
         """
+        if np.ndim(z) != 0 or np.ndim(t) != 0:
+            raise ValueError("compute_on_op requires 'z' and 't' to be scalars.")
+
         backend = self.get_backend(backend_name)
 
         if self.config.verbose:
@@ -257,13 +260,26 @@ class FieldEngine:
         FieldResult
             Object containing E (3, len(y_vec), len(x_vec)) and optional fields.
         """
+        x_vec = np.atleast_1d(x_vec)
+        y_vec = np.atleast_1d(y_vec)
+        
+        if x_vec.ndim != 1 or y_vec.ndim != 1:
+            raise ValueError(
+                f"compute_grid requires exactly 1D vectors for x and y axes. "
+                f"Got ndims - x:{x_vec.ndim}, y:{y_vec.ndim}"
+            )
+            
+        if np.ndim(z) != 0 or np.ndim(t) != 0:
+            raise ValueError("compute_grid requires 'z' and 't' to be scalars.")
+
         backend = self.get_backend(backend_name)
         
-        return self._wrap_results(backend.compute_grid(
+        E,D,B = backend.compute_grid(
             x_vec, y_vec, z, t, 
             need_b=need_b, need_derivs=need_derivs, 
             progress_bar=self.config.verbose,
-        ))
+        )
+        return self._wrap_results(E,D,B)
     
     def compute_cloud(
             self, x_arr: np.ndarray, y_arr: np.ndarray, z_arr: np.ndarray, t: float = 0.0,
@@ -288,13 +304,35 @@ class FieldEngine:
         FieldResult
             Object containing E (3, N) and optional fields.
         """
+
+        x_arr = np.atleast_1d(x_arr)
+        y_arr = np.atleast_1d(y_arr)
+        z_arr = np.atleast_1d(z_arr)
+        
+        if x_arr.ndim != 1 or y_arr.ndim != 1 or z_arr.ndim != 1:
+            raise ValueError(
+                f"compute_cloud requires 1D arrays. Got ndims: "
+                f"x:{x_arr.ndim}, y:{y_arr.ndim}, z:{z_arr.ndim}"
+            )
+
+        if not (len(x_arr) == len(y_arr) == len(z_arr)):
+            raise ValueError(
+                f"compute_cloud requires arrays of identical length. "
+                f"Got lengths - x:{len(x_arr)}, y:{len(y_arr)}, z:{len(z_arr)}"
+            )
+        
+        if np.ndim(t) != 0:
+            raise ValueError(f"Time 't' must be a scalar, got ndim={np.ndim(t)}")
+
+
         backend = self.get_backend(backend_name)
 
-        return self._wrap_results(backend.compute_cloud(
+        E,D,B = backend.compute_cloud(
             x_arr, y_arr, z_arr, t,
             need_b=need_b, need_derivs=need_derivs,
             progress_bar=self.config.verbose,
-        ))
+        )
+        return self._wrap_results(E,D,B)
     
     def compute_point(
             self, x: float, y: float, z: float, t: float = 0.0,
@@ -308,9 +346,16 @@ class FieldEngine:
         FieldResult
             Object containing E (3,) and optional fields.
         """
+        if np.ndim(x) != 0 or np.ndim(y) != 0 or np.ndim(z) != 0 or np.ndim(t) != 0:
+            raise ValueError(
+                "compute_point requires pure scalars for x, y, z, and t. "
+                "If you want to compute multiple points, use compute_cloud."
+            )
+
         backend = self.get_backend(backend_name)
 
-        return self._wrap_results(backend.compute_point(
+        E,D,B = backend.compute_point(
                 x, y, z, t, need_b=need_b, 
                 need_derivs=need_derivs
-            ))
+            )
+        return self._wrap_results(E,D,B)

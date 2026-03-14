@@ -66,7 +66,6 @@ except ImportError:
             def close(self): pass
         return DummyPbar()
 
-
 __all__ =[
     # Config
     "Config",

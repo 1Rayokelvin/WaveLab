@@ -514,7 +514,7 @@ class SourceConfig(SerializableConfig):
         self.beam_axis = (axis[0]/norm, axis[1]/norm, axis[2]/norm)
         
         self.theta_max = _check_scalar(self.theta_max, "source.theta_max", float)
-        if not 0 < self.theta_max < np.pi:
+        if not 0 < self.theta_max <= np.pi:
             raise ValueError("For fibonacci sampling, maximum angle must be in (0, pi).")
         
         self.k_space.validate()

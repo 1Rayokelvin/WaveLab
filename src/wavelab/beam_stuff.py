@@ -15,7 +15,7 @@ Pipeline Context:
 import numpy as np
 import warnings
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Literal
 from functools import cached_property
 
 from .config_stuff import Config
@@ -149,30 +149,68 @@ class Beam:
                 print(f"Mean Axis      : [{mean_axis[0]:.3f}, {mean_axis[1]:.3f}, {mean_axis[2]:.3f}]")
                 print(f"RMS Divergence : ~{np.degrees(rms_theta):.2f} degrees half-angle")
 
-    def plot_kspace_3d(self, cmap='inferno'):
+    def plot_kspace_3d(
+            self,  cmap='inferno', plot_type:Literal['colored_vectors','colored_sphere']='colored_vectors'
+            ):
         """
-        Renders an interactive 3D visualization of the wavevectors using PyVista.
-        Arrows represent propagation directions colored by mode amplitude.
+        Renders an interactive 3D visualization of the wavevectors, amplitudes using PyVista..
+
+        Parameters
+        ----------
+        cmap : optional
+            Colormap for mode amplitudes (default 'inferno').
+        plot_type : Literal['colored_vectors', 'colored_sphere'], optional
+            'colored_vectors': arrows along k_hats colored by amplitude.
+            'colored_sphere': unit sphere colored by amplitudes for a smooth heatmap.
+            Default is colored_vectors.
+
+        Returns
+        -------
+        pyvista.Plotter
+            Plotter object for further manipulation.
         """
         try:
             import pyvista as pv
         except ImportError:
             warnings.warn("pyvista is required for 3D visualization.")
             return
-
-        cloud = pv.PolyData(np.zeros((self.num_modes, 3)))
-        cloud['directions'] = np.ascontiguousarray(self.k_hat.T)
-        cloud['amplitudes'] = self.amplitudes
-        
-        arrow_geom = pv.Arrow(start=(0, 0, 0), direction=(0, 0, 1), scale=1.0)
-        arrows = cloud.glyph(orient='directions', scale=False, geom=arrow_geom, factor=1.0)
         
         plotter = pv.Plotter()
-        plotter.add_mesh(arrows, scalars='amplitudes', cmap=cmap)
-        plotter.add_axes()
-        plotter.set_background((0.15, 0.16, 0.18))
-        plotter.show()
+        plotter.set_scale(1)
+        plotter.show_axes()
 
+
+        if plot_type == 'colored_vectors':
+            origins = np.zeros((self.num_modes, 3))
+            mesh = pv.PolyData(origins)
+            mesh["vec"] = self.k_hat.T
+            mesh["amplitudes"] = self.amplitudes
+            arrows = mesh.glyph(orient="vec", scale=False, factor=0.2)
+            plotter.add_mesh(
+                arrows, scalars='amplitudes', 
+                cmap=cmap, clim=[0, np.max(self.amplitudes)],
+                scalar_bar_args={'vertical': True, 'title': 'Amplitude'}
+                )
+
+        elif plot_type == 'colored_sphere':
+            sphere = pv.Sphere(theta_resolution=60, phi_resolution=120)
+            # map amplitudes to sphere points using nearest-neighbor
+            from scipy.spatial import cKDTree
+            tree = cKDTree(self.k_hat.T)
+            _, idx = tree.query(sphere.points)  # find nearest k_hat for each sphere point
+            sphere["amplitudes"] = self.amplitudes[idx]
+            plotter.add_mesh(
+                sphere, scalars='amplitudes', 
+                cmap=cmap, clim=[0, np.max(self.amplitudes)],
+                scalar_bar_args={'vertical': True, 'title': 'Amplitude'}
+                )
+            
+        else: raise ValueError("plot_type must be colored_sphere or colored_vectors")
+
+        plotter.show()
+        
+        return plotter
+    
     def plot_k_perp_profile(self, normal: Optional[Tuple[float, float, float]] = None, show: bool = True):
         """
         Plots Amplitude vs Transverse wave number (k_perp).
@@ -219,16 +257,12 @@ class Beam:
         
         fig, ax = plt.subplots(figsize=(7, 4))
         
-        # Sort by amplitude so the plot looks clean (brightest points on top)
-        idx = np.argsort(self.amplitudes)
-        
-        ax.scatter(k_perp[idx], self.amplitudes[idx], c=self.amplitudes[idx], 
-                   cmap='inferno', alpha=0.7, s=15, edgecolors='none')
-        
+        ax.scatter(k_perp, self.amplitudes, s=15)
         ax.set_xlabel(r'Transverse Wavenumber $k_\perp$')
         ax.set_ylabel('Mode Amplitude')
-        ax.set_title(f"K-Space Profile\nAxis: [{normal_vec[0]:.2f}, {normal_vec[1]:.2f}, {normal_vec[2]:.2f}]")
+        ax.set_title(f"K-Space Tranverse Profile about\nNormal: [{normal_vec[0]:.2f}, {normal_vec[1]:.2f}, {normal_vec[2]:.2f}]")
         ax.grid(True, alpha=0.2)
+        ax.set_ybound(lower=0,upper=np.max(self.amplitudes)*1.2)
         plt.tight_layout()
         
         if show:
@@ -248,7 +282,7 @@ class Beam:
         unique_wls = np.unique(wls)
         
         if len(unique_wls) == 1:
-            ax.axvline(unique_wls[0], color='indigo', lw=3, label=f'$\lambda={unique_wls[0]}$')
+            ax.axvline(unique_wls[0], color='indigo', lw=3, label=fr'$\lambda={unique_wls[0]}$')
         else:
             spectra = [np.sum(self.mode_irradiances[wls == wl]) for wl in unique_wls]
             ax.bar(unique_wls, spectra, width=max(np.ptp(unique_wls)*0.02, 1e-3), color='indigo')
@@ -373,37 +407,8 @@ class BeamMaker:
 
     # =========================================================================
     #                       SAMPLING STRATEGIES
-    # =========================================================================
-            
+    # =========================================================================    
     def _sample_sphere_fib(self, N: int, beam_axis: Tuple, theta_max: float) -> Tuple[np.ndarray, np.ndarray]:
-        fraction = (1.0 - np.cos(theta_max)) / 2.0
-        if N / (fraction + 1e-9) > 1e5:
-            return self._sample_fib_cap_direct(N, beam_axis, theta_max)
-
-        N_total = int(np.ceil(N / fraction * 1.2))
-        i = np.arange(N_total)
-        phi = np.pi * (3.0 - np.sqrt(5.0)) * i
-        z = 1 - (2 * i + 1) / N_total
-        r = np.sqrt(np.maximum(0, 1 - z**2))
-        points = np.column_stack((r * np.cos(phi), r * np.sin(phi), z))
-        
-        ang = self.rng.uniform(0, 2*np.pi)
-        c, s = np.cos(ang), np.sin(ang)
-        points = points @ np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]).T
-
-        target = np.array(beam_axis, dtype=float)
-        target /= np.linalg.norm(target)
-        
-        mask = np.dot(points, target) >= np.cos(theta_max)
-        valid_points = points[mask]
-        
-        if len(valid_points) < N:
-            return self._sample_sphere_fib(N, beam_axis, theta_max)
-            
-        self.rng.shuffle(valid_points)
-        return valid_points[:N], np.full(N, 4.0 * np.pi / N_total)
-
-    def _sample_fib_cap_direct(self, N: int, beam_axis: Tuple, theta_max: float) -> Tuple[np.ndarray, np.ndarray]:
         z_min = np.cos(theta_max)
         z_range = 1.0 - z_min
         i = np.arange(N)
