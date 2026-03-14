@@ -6,6 +6,7 @@ Find and analyze polarization singularities in 3D electromagnetic fields.
 """
 
 import numpy as np
+from .engine_stuff import FieldEngine
 
 class SingularityFinder:
     """
@@ -30,13 +31,13 @@ class SingularityFinder:
     -------
     ```
     expt = setup_experiment(cfg)
-    E, _, _ = expt.compute_on_op(z=0.0)
+    fields = expt.compute_on_op(z=0.0)
     
     finder = singularity_finder(expt)
-    pts = finder.find_stokes_C_points(z_val=0.0, E_grid=E)
+    pts = finder.find_stokes_C_points(z_val=0.0, E_grid=fields.E)
     ```
     """
-    def __init__(self, physics_engine, requested_backend='numba'):
+    def __init__(self, physics_engine: FieldEngine, requested_backend='numba'):
         self.engine = physics_engine
         self.backend_name = self.engine.selector(requested_backend)
         if self.backend_name == 'numpy' and self.engine.config.verbose:
@@ -51,11 +52,10 @@ class SingularityFinder:
     # --- Internals ---
     def _compute_field_and_jacobian_at_point(self, x, y, z):
         """Wraps the field_engine's calculator to get data for a single point."""
-        E, derivs,_ = self.engine.compute_point(
+        fields = self.engine.compute_point(
             x,y,z,t=self.t, need_b=False, backend_name=self.backend_name
             )
-        J = np.column_stack(derivs)
-        return E, J
+        return fields.E, fields.jacobian_E
 
     def _newton_raphson_2d(self, value_and_corrector, x0, y0, max_iter=10, tol=1e-6, value_tol=1e-6):
         x, y = x0, y0

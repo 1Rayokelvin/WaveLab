@@ -3,11 +3,12 @@ spectras.py
 ========================
 
 Mathematical implementations of spatial (k-space) and spectral (wavelength) distributions.
+All methods are implemented with xy plane as transverse plane!
 """
 import numpy as np
 from scipy.special import eval_hermite, eval_genlaguerre
 
-class SpatialSpectra:
+class KSpaceSpectra:
     """
     Implementations of Spatial Profiles in k-space.
     
@@ -234,9 +235,9 @@ class SpatialSpectra:
         
         return res
 
-class SpectralSpectra:
+class PolychromaticSpectra:
     """
-    Implementations of Longitudinal Spectral Profiles (Polychromatic Envelopes).
+    Implementations of Polychromatic Envelopes.
     
     All functions here take a wavelength and spectral parameters, 
     returning a real scalar weight for that specific wavelength.

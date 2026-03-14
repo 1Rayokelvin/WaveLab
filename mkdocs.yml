@@ -1,0 +1,37 @@
+site_name: WaveLab
+site_description: 3D Optical Field Simulations and Singularity Tracking
+repo_url: https://github.com/1Rayokelvin/wavelab
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - content.code.copy
+  palette:
+    scheme: slate
+    primary: indigo
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_root_heading: true
+            show_source: true
+
+markdown_extensions:
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+
+nav:
+  - Home: index.md
+  - API Reference:
+    - Configuration: api/config.md
+    - Core Physics: api/core.md
+    - Singularities: api/singularities.md
+    - Utilities: api/utils.md
