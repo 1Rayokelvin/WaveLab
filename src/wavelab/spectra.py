@@ -1,5 +1,5 @@
 """
-spectras.py
+KSpace and Polychromatic Spectras
 ========================
 
 Mathematical implementations of spatial (k-space) and spectral (wavelength) distributions.

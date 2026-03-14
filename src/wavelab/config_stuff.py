@@ -1,15 +1,4 @@
 """
-config_stuff.py
-========================
-
-This module defines the configuration data structures for WaveLab experiments.
-It employs strict type checking and validation to ensure physical parameters
-are valid before computation begins.
-
-It includes serialization support (JSON) and extensive documentation for 
-angular spectrum generation.
-"""
-"""
 Configuration & Experiment Schema
 =================================
 

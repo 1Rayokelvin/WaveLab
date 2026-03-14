@@ -30,10 +30,10 @@ class SingularityFinder:
     Example
     -------
     ```
-    expt = setup_experiment(cfg)
-    fields = expt.compute_on_op(z=0.0)
+    engine = setup_engine(cfg)
+    fields = engine.compute_on_op(z=0.0)
     
-    finder = singularity_finder(expt)
+    finder = singularity_finder(engine)
     pts = finder.find_stokes_C_points(z_val=0.0, E_grid=fields.E)
     ```
     """
